@@ -2,16 +2,15 @@
 
 ![VirtualFair Logo](https://via.placeholder.com/150)
 
-**VirtualFair** is an innovative platform for creating and managing engaging virtual fairs. Designed for businesses, event organizers, and SMEs, VirtualFair leverages modern technologies to offer a unique, scalable experience.
+**VirtualFair** is a platform for creating and managing engaging virtual fairs. Designed for businesses, event organizers, and SMEs, VirtualFair leverages modern technologies to offer a unique, scalable experience.
 
 ---
 
 ## 🚀 Features
 
 ### 🎪 **Virtual Booths**
-- Fully customizable booths with static and dynamic content.
+- Customizable booths with static and dynamic content.
 - **Augmented Reality (AR)**: Display 3D models for immersive experiences.
-- Premium sponsorship options for maximum visibility.
 
 ### 📺 **Live Events**
 - Real-time streaming powered by **AWS IVS**.
