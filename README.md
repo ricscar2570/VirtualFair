@@ -1,3 +1,13 @@
+# VirtualFair — Historical Virtual-Expo Prototype
+
+> **Repository status:** preserved historical prototype.  
+> VirtualFair represents an earlier virtual-fair concept and implementation with an ambitious feature set including AR, streaming, recommendations, translation and direct e-commerce.  
+> It is **not the current production-hardening repository** for the newer B2B virtual/hybrid-event SaaS line. Current repository: `ricscar2570/aipavilion`.
+
+The source remains preserved because it contains real backend/frontend implementation and useful product-history material. Do not delete it merely because the current product scope has changed.
+
+---
+
 # VirtualFair
 
 ![VirtualFair Logo](https://via.placeholder.com/150)
