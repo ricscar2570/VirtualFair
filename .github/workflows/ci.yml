@@ -33,10 +33,10 @@ jobs:
           node scripts/check-lockfile-portability.js
           npm run ci:install
 
-      - name: Generate canonical format and ESLint patch
+      - name: Generate canonical ESLint and format patch
         run: |
-          npm run format
           npx eslint . --ext .js --fix || true
+          npm run format
           git diff --binary -- . ':(exclude).github/workflows/ci.yml' > quality-fix.patch
 
       - name: Upload canonical quality patch
