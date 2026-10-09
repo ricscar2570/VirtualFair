@@ -387,6 +387,282 @@ describe("CartManager", () => {
     });
 });
 
+
+describe("CartManager — defensive branches", () => {
+    beforeEach(() => {
+        localStorage.clear();
+        cartManager.maxItems = 50;
+        cartManager.maxQuantityPerItem = 99;
+        cartManager.clearCart();
+    });
+
+    test("filters malformed persisted entries", () => {
+        localStorage.setItem(
+            cartManager.storageKey,
+            JSON.stringify([
+                {
+                    productId: "valid",
+                    productName: "Valid",
+                    price: 2,
+                    quantity: 1,
+                },
+                { productId: "", productName: "Missing ID", price: 1, quantity: 1 },
+                { productId: "p2", productName: "", price: 1, quantity: 1 },
+                { productId: "p3", productName: "Bad price", price: "1", quantity: 1 },
+                { productId: "p4", productName: "Bad qty", price: 1, quantity: 0 },
+            ]),
+        );
+        expect(cartManager.getCart()).toEqual([
+            expect.objectContaining({ productId: "valid" }),
+        ]);
+    });
+
+    test.each([
+        ["", "Name", 1, 1, /required/i],
+        ["p1", "", 1, 1, /required/i],
+        ["p1", "Name", -1, 1, /invalid price/i],
+        ["p1", "Name", "1", 1, /invalid price/i],
+        ["p1", "Name", 1, 0, /invalid quantity/i],
+        ["p1", "Name", 1, "1", /invalid quantity/i],
+    ])(
+        "rejects invalid addItem arguments %#",
+        (productId, productName, price, quantity, error) => {
+            expect(() =>
+                cartManager.addItem(productId, productName, price, quantity),
+            ).toThrow(error);
+        },
+    );
+
+    test("removeItem reports a missing product without writing", () => {
+        cartManager.addItem("p1", "One", 1, 1);
+        expect(cartManager.removeItem("missing")).toBe(false);
+        expect(cartManager.getUniqueItemCount()).toBe(1);
+    });
+
+    test("updateQuantity handles invalid, zero, capped, missing and successful updates", () => {
+        cartManager.maxQuantityPerItem = 3;
+        cartManager.addItem("p1", "One", 2, 1);
+
+        expect(() => cartManager.updateQuantity("p1", -1)).toThrow(
+            /invalid quantity/i,
+        );
+        expect(() => cartManager.updateQuantity("p1", "2")).toThrow(
+            /invalid quantity/i,
+        );
+        expect(() => cartManager.updateQuantity("p1", 4)).toThrow(
+            /maximum quantity/i,
+        );
+        expect(cartManager.updateQuantity("missing", 2)).toBe(false);
+        expect(cartManager.updateQuantity("p1", 2)).toBe(true);
+        expect(cartManager.getItem("p1").quantity).toBe(2);
+        expect(cartManager.updateQuantity("p1", 0)).toBe(true);
+        expect(cartManager.hasItem("p1")).toBe(false);
+    });
+
+    test("updateItem distinguishes missing and existing products", () => {
+        expect(cartManager.updateItem("missing", { metadata: { a: 1 } })).toBe(
+            false,
+        );
+        cartManager.addItem("p1", "One", 3, 1);
+        expect(
+            cartManager.updateItem("p1", {
+                productName: "Renamed",
+                metadata: { source: "test" },
+            }),
+        ).toBe(true);
+        expect(cartManager.getItem("p1")).toEqual(
+            expect.objectContaining({
+                productName: "Renamed",
+                metadata: { source: "test" },
+            }),
+        );
+    });
+
+    test("reports item counts, lookups and clones without sharing references", () => {
+        cartManager.addItem("p1", "One", 2, 2);
+        cartManager.addItem("p2", "Two", 3, 1);
+        expect(cartManager.getItemCount()).toBe(3);
+        expect(cartManager.getUniqueItemCount()).toBe(2);
+        expect(cartManager.hasItem("p2")).toBe(true);
+        expect(cartManager.getItem("missing")).toBeNull();
+
+        const clone = cartManager.cloneCart();
+        clone[0].quantity = 99;
+        expect(cartManager.getItem("p1").quantity).toBe(2);
+    });
+
+    test("validate reports both an empty cart and malformed rows", () => {
+        expect(cartManager.validate()).toEqual(
+            expect.objectContaining({
+                isValid: false,
+                errors: expect.arrayContaining(["Cart is empty"]),
+            }),
+        );
+
+        const originalGetCart = cartManager.getCart;
+        cartManager.getCart = () => [
+            { productId: "", price: -1, quantity: 0 },
+            { productId: "p2", price: "bad", quantity: "bad" },
+        ];
+        try {
+            const result = cartManager.validate();
+            expect(result.isValid).toBe(false);
+            expect(result.errors).toEqual(
+                expect.arrayContaining([
+                    "Item 1: Missing product ID",
+                    "Item 1: Invalid price",
+                    "Item 1: Invalid quantity",
+                    "Item 2: Invalid price",
+                    "Item 2: Invalid quantity",
+                ]),
+            );
+        } finally {
+            cartManager.getCart = originalGetCart;
+        }
+    });
+
+    test("bulk add records successes and failures", () => {
+        const results = cartManager.addMultipleItems([
+            { productId: "p1", productName: "One", price: 1 },
+            { productId: "", productName: "Broken", price: 1 },
+        ]);
+        expect(results).toEqual([
+            { success: true, productId: "p1" },
+            expect.objectContaining({ success: false, productId: "" }),
+        ]);
+
+        cartManager.addItem("p2", "Two", 2, 1);
+        cartManager.removeMultipleItems(["p1", "missing"]);
+        expect(cartManager.hasItem("p1")).toBe(false);
+        expect(cartManager.hasItem("p2")).toBe(true);
+    });
+
+    test("mergeCart merges, caps and appends within cart capacity", () => {
+        cartManager.maxQuantityPerItem = 3;
+        cartManager.maxItems = 2;
+        cartManager.addItem("p1", "One", 1, 2);
+        cartManager.mergeCart([
+            {
+                productId: "p1",
+                productName: "One",
+                price: 1,
+                quantity: 5,
+            },
+            {
+                productId: "p2",
+                productName: "Two",
+                price: 2,
+                quantity: 1,
+            },
+            {
+                productId: "p3",
+                productName: "Three",
+                price: 3,
+                quantity: 1,
+            },
+        ]);
+        expect(cartManager.getItem("p1").quantity).toBe(3);
+        expect(cartManager.hasItem("p2")).toBe(true);
+        expect(cartManager.hasItem("p3")).toBe(false);
+    });
+
+    test("discount and tax calculations validate their ranges", () => {
+        cartManager.addItem("p1", "One", 100, 1);
+        expect(cartManager.applyDiscount(25)).toBe(75);
+        expect(cartManager.calculateTax(20)).toBe(20);
+        expect(cartManager.getTotalWithTax(20)).toBe(120);
+        expect(() => cartManager.applyDiscount(-1)).toThrow(/discount/i);
+        expect(() => cartManager.applyDiscount(101)).toThrow(/discount/i);
+        expect(() => cartManager.applyDiscount("10")).toThrow(/discount/i);
+        expect(() => cartManager.calculateTax(-1)).toThrow(/tax rate/i);
+        expect(() => cartManager.calculateTax("20")).toThrow(/tax rate/i);
+    });
+
+    test("subscribe supports unsubscribe and isolates subscriber errors", () => {
+        const listener = jest.fn();
+        const unsubscribe = cartManager.subscribe(listener);
+        expect(listener).toHaveBeenCalled();
+
+        cartManager.addItem("p1", "One", 1, 1);
+        expect(listener).toHaveBeenCalledWith(
+            expect.any(Array),
+            expect.any(String),
+            expect.any(Object),
+        );
+
+        unsubscribe();
+        const callsAfterUnsubscribe = listener.mock.calls.length;
+        cartManager.addItem("p2", "Two", 1, 1);
+        expect(listener).toHaveBeenCalledTimes(callsAfterUnsubscribe);
+
+        const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const badListener = () => {
+            throw new Error("subscriber failure");
+        };
+        const removeBad = cartManager.subscribe(badListener);
+        cartManager.addItem("p3", "Three", 1, 1);
+        expect(errorSpy).toHaveBeenCalled();
+        removeBad();
+        errorSpy.mockRestore();
+    });
+
+    test("imports and exports carts safely", () => {
+        const payload = JSON.stringify([
+            {
+                productId: "p1",
+                productName: "One",
+                price: 4,
+                quantity: 2,
+            },
+        ]);
+        expect(cartManager.importCart(payload)).toBe(true);
+        expect(JSON.parse(cartManager.exportCart())).toHaveLength(1);
+        expect(cartManager.importCart("{}")).toBe(false);
+        expect(cartManager.importCart("{bad json")).toBe(false);
+    });
+
+    test("summary and stopSync cover derived and cleanup state", () => {
+        cartManager.addItem("p1", "One", 4, 2);
+        expect(cartManager.getCartSummary()).toEqual(
+            expect.objectContaining({
+                itemCount: 2,
+                uniqueItemCount: 1,
+                subtotal: 8,
+                isEmpty: false,
+            }),
+        );
+
+        cartManager.syncInterval = setInterval(() => {}, 1000);
+        cartManager.stopSync();
+        expect(cartManager.syncInterval).toBeNull();
+        // No-op branch when already stopped.
+        cartManager.stopSync();
+    });
+
+    test("syncWithBackend handles empty, populated and error paths", async () => {
+        await expect(cartManager.syncWithBackend()).resolves.toBeUndefined();
+
+        const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+        cartManager.addItem("p1", "One", 1, 1);
+        await expect(cartManager.syncWithBackend()).resolves.toBeUndefined();
+        expect(logSpy).toHaveBeenCalled();
+        logSpy.mockRestore();
+
+        const originalGetCart = cartManager.getCart;
+        const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        cartManager.getCart = () => {
+            throw new Error("storage unavailable");
+        };
+        try {
+            await expect(cartManager.syncWithBackend()).resolves.toBeUndefined();
+            expect(errorSpy).toHaveBeenCalled();
+        } finally {
+            cartManager.getCart = originalGetCart;
+            errorSpy.mockRestore();
+        }
+    });
+});
+
 // ─── dashboard-templates.js ───────────────────────────────────────────────────
 
 const {
