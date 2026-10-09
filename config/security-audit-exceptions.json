@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "exceptions": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "severity": "high",
+      "scope": "dev-only",
+      "expiresOn": "2026-11-15",
+      "owner": "AI Pavilion release engineering",
+      "rationale": "No patched braces release is currently listed. Acceptance is valid only when every affected installed node is development-only; production dependencies retain a zero-high gate.",
+      "remediation": "Review weekly. Remove the exception when a patched braces release exists, or complete the Tailwind 4 migration after CSS and browser regression testing."
+    }
+  ]
+}
