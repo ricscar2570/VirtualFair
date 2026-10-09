@@ -17,7 +17,7 @@ function commandAvailable(command, args = ["--version"]) {
 }
 
 function productionLike(value) {
-    return /(^|[.\/_-])(prod|production|live)([.\/_-]|$)/i.test(
+    return /(^|[./_-])(prod|production|live)([./_-]|$)/i.test(
         String(value || ""),
     );
 }

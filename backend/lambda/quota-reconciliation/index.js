@@ -2,14 +2,10 @@
 
 const {
   scanAll,
-  getCounter,
   calculateEventUsage,
   calculateStandUsage,
   readEntitlement,
   extractLimit,
-  eventCounterKey,
-  standCounterKey,
-  initializeCounter,
   setCounterAbsolute,
   releaseOccupancy,
   requiredEnv,

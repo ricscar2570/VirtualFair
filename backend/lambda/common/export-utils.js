@@ -2,7 +2,6 @@
 
 const DEFAULT_MAX_PAGES = 10000;
 const CSV_FORMULA_PREFIX = "'";
-const DANGEROUS_CSV_PREFIX = /^[\u0000-\u0020]*[=+\-@]/u;
 
 class ExportLimitError extends Error {
     constructor({ code = "EXPORT_TOO_LARGE", maxItems, observedItems }) {
@@ -25,15 +24,28 @@ function positiveInteger(
     return Math.min(Math.max(parsed, minimum), maximum);
 }
 
+function stripNullCharacters(value) {
+    return Array.from(String(value ?? ""))
+        .filter((character) => character.charCodeAt(0) !== 0)
+        .join("");
+}
+
+function startsWithDangerousSpreadsheetPrefix(value) {
+    const text = String(value ?? "");
+    let index = 0;
+    while (index < text.length && text.charCodeAt(index) <= 0x20) {
+        index += 1;
+    }
+    return ["=", "+", "-", "@"].includes(text[index]);
+}
+
 function normalizeCsvText(value) {
-    return String(value ?? "")
-        .replace(/\u0000/g, "")
-        .replace(/\r\n|\r|\n/g, " ");
+    return stripNullCharacters(value).replace(/\r\n|\r|\n/g, " ");
 }
 
 function neutralizeSpreadsheetFormula(value) {
     const normalized = normalizeCsvText(value);
-    return DANGEROUS_CSV_PREFIX.test(normalized)
+    return startsWithDangerousSpreadsheetPrefix(normalized)
         ? `${CSV_FORMULA_PREFIX}${normalized}`
         : normalized;
 }

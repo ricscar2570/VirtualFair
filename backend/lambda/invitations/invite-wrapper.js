@@ -10,7 +10,6 @@ const {
   ScanCommand,
 } = require("@aws-sdk/lib-dynamodb");
 const quota = require("../common/quota-store");
-const { QuotaError } = require("../common/quota-model");
 const {
   InvitePolicyError,
   normalizeEmail,
