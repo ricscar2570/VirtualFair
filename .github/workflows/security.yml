@@ -26,8 +26,10 @@ jobs:
         run: |
           node scripts/check-lockfile-portability.js
           npm run ci:install
-      - name: Dependency vulnerability gate
-        run: npm audit --audit-level=high
+      - name: Production dependency vulnerability gate
+        run: npm audit --omit=dev --audit-level=high
+      - name: Reviewed development dependency vulnerability gate
+        run: node scripts/security/audit-policy.js
       - name: Source, contracts and generated pilot verification
         run: npm run verify
       - name: Reject common secret formats in tracked source
