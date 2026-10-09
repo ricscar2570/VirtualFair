@@ -55,10 +55,10 @@ jobs:
       - name: Apply safe dependency remediation
         run: npm audit fix --registry=https://registry.npmjs.org || true
 
-      - name: Normalize formatting and lint fixes
+      - name: Normalize lint and formatting fixes
         run: |
-          npm run format
           npm run lint:fix
+          npm run format
 
       - name: Verify application
         run: npm run verify
