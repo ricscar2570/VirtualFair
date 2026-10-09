@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: repair-ci-baseline
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   repair:
@@ -52,6 +52,9 @@ jobs:
           PY
           npm run pilot:generate
 
+      - name: Upgrade fixable test tooling
+        run: npm install --save-dev jest@30.5.2 babel-jest@30.5.2 --registry=https://registry.npmjs.org
+
       - name: Apply safe dependency remediation
         run: npm audit fix --registry=https://registry.npmjs.org || true
 
@@ -63,8 +66,11 @@ jobs:
       - name: Verify application
         run: npm run verify
 
-      - name: Enforce dependency security gate
-        run: npm audit --audit-level=high
+      - name: Enforce production dependency security gate
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Enforce reviewed development dependency policy
+        run: node scripts/security/audit-policy.js
 
       - name: Validate SAM templates
         run: |
