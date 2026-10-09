@@ -12,8 +12,7 @@ function inferEnvironment() {
     return normalized(
         process.env.ENVIRONMENT ||
             process.env.TEST_USER_ENVIRONMENT ||
-            process.env.STAGE ||
-            process.env.NODE_ENV,
+            process.env.STAGE,
     );
 }
 

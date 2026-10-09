@@ -741,6 +741,13 @@ describe("Phase 3 invitation lifecycle", () => {
         mockSend
             .mockResolvedValueOnce({ Item: invitation })
             .mockResolvedValueOnce({
+                Item: {
+                    userId: "user-a",
+                    email: "user-a@example.com",
+                    status: "active",
+                },
+            })
+            .mockResolvedValueOnce({
                 Item: { organizationId: "org-a", status: "active" },
             })
             .mockResolvedValueOnce({
@@ -750,7 +757,6 @@ describe("Phase 3 invitation lifecycle", () => {
                     status: "published",
                 },
             })
-            .mockResolvedValueOnce({})
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
         const response = await invitations(
@@ -769,8 +775,8 @@ describe("Phase 3 invitation lifecycle", () => {
             ownerUserId: "user-a",
             status: "draft",
         });
-        expect(mockSend.mock.calls[4][0].type).toBe("TransactWrite");
-        expect(mockSend.mock.calls[4][0].input.TransactItems).toHaveLength(4);
+        expect(mockSend.mock.calls[5][0].type).toBe("TransactWrite");
+        expect(mockSend.mock.calls[5][0].input.TransactItems).toHaveLength(4);
     });
 
     test("replaying an accepted invitation is idempotent", async () => {
@@ -927,6 +933,7 @@ describe("Phase 3 exhibitor lead workflow", () => {
         createdAt: "2026-07-14T10:00:00.000Z",
         sourceHash: "private",
         ttl: 123,
+        revision: 1,
     };
 
     test("lists and exports leads for an owned stand", async () => {
@@ -972,6 +979,10 @@ describe("Phase 3 exhibitor lead workflow", () => {
             apiEvent({
                 path: "/exhibitor/leads/lead-a",
                 httpMethod: "PATCH",
+                headers: {
+                    origin: "http://localhost:3000",
+                    "If-Match": '"1"',
+                },
                 body: JSON.stringify({ status: "contacted", notes: "Called" }),
             }),
         );
@@ -1073,6 +1084,7 @@ describe("Phase 4 tenant operations", () => {
                     organizationId: "org-a",
                     role: "exhibitor",
                     status: "active",
+                    revision: 1,
                 },
             })
             .mockResolvedValueOnce({});
@@ -1159,6 +1171,7 @@ describe("Phase 4 tenant operations", () => {
                     organizationId: "org-a",
                     name: "Old name",
                     status: "active",
+                    revision: 1,
                 },
             })
             .mockResolvedValueOnce({})
@@ -1167,6 +1180,10 @@ describe("Phase 4 tenant operations", () => {
             apiEvent({
                 httpMethod: "PATCH",
                 path: "/organizations/org-a",
+                headers: {
+                    origin: "http://localhost:3000",
+                    "If-Match": '"1"',
+                },
                 body: JSON.stringify({
                     name: "Updated Org",
                     billingEmail: "billing@example.com",
@@ -1241,6 +1258,10 @@ describe("Phase 4 tenant operations", () => {
             apiEvent({
                 path: "/organizations/org-a/memberships/member-user",
                 httpMethod: "PATCH",
+                headers: {
+                    origin: "http://localhost:3000",
+                    "If-Match": '"1"',
+                },
                 body: JSON.stringify({
                     role: "exhibitor",
                     status: "suspended",
@@ -1259,6 +1280,7 @@ describe("Phase 4 tenant operations", () => {
                     organizationId: "org-a",
                     role: "exhibitor",
                     status: "suspended",
+                    revision: 2,
                 },
             })
             .mockResolvedValueOnce({})
@@ -1267,13 +1289,17 @@ describe("Phase 4 tenant operations", () => {
             apiEvent({
                 path: "/organizations/org-a/memberships/member-user",
                 httpMethod: "DELETE",
+                headers: {
+                    origin: "http://localhost:3000",
+                    "If-Match": '"2"',
+                },
             }),
         );
         expect(removed.statusCode).toBe(200);
         expect(JSON.parse(removed.body).removed).toBe(true);
         expect(mockSend.mock.calls[2][0].type).toBe("TransactWrite");
         expect(
-            mockSend.mock.calls[2][0].input.TransactItems[0].Delete,
+            mockSend.mock.calls[2][0].input.TransactItems[0].Update,
         ).toBeDefined();
     });
 

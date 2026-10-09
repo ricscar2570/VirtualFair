@@ -12,6 +12,7 @@ jest.mock("@aws-sdk/lib-dynamodb", () => ({
         from: jest.fn(() => ({ send: mockDynamoSend })),
     },
     QueryCommand: jest.fn((input) => ({ type: "Query", input })),
+    BatchGetCommand: jest.fn((input) => ({ type: "BatchGet", input })),
     GetCommand: jest.fn((input) => ({ type: "Get", input })),
     PutCommand: jest.fn((input) => ({ type: "Put", input })),
     DeleteCommand: jest.fn((input) => ({ type: "Delete", input })),
@@ -34,6 +35,18 @@ jest.mock("../../backend/lambda/common/cors", () => ({
 const savedHandler =
     require("../../backend/lambda/user-saved-stands/index").handler;
 const statsHandler = require("../../backend/lambda/user-stats/index").handler;
+
+function publicEvent(overrides = {}) {
+    return {
+        eventId: "event-1",
+        status: "published",
+        visibility: "public",
+        publicStatus: "published",
+        publicationState: "published",
+        publishedAt: "2026-01-01T00:00:00.000Z",
+        ...overrides,
+    };
+}
 
 function makeEvent(overrides = {}) {
     return {
@@ -72,21 +85,34 @@ describe("user-saved-stands Lambda", () => {
     });
 
     test("lists newest saved stands with a cursor", async () => {
-        mockDynamoSend.mockResolvedValue({
-            Items: [
-                {
+        mockDynamoSend
+            .mockResolvedValueOnce({
+                Items: [
+                    {
+                        userId: "user-abc",
+                        standId: "s1",
+                        name: "Alpha",
+                        savedAt: "2026-01-02",
+                    },
+                ],
+                LastEvaluatedKey: {
                     userId: "user-abc",
                     standId: "s1",
-                    name: "Alpha",
                     savedAt: "2026-01-02",
                 },
-            ],
-            LastEvaluatedKey: {
-                userId: "user-abc",
-                standId: "s1",
-                savedAt: "2026-01-02",
-            },
-        });
+            })
+            .mockResolvedValueOnce({
+                Responses: {
+                    "ai-pavilion-stands": [
+                        publicStand({ stand_id: "s1" }),
+                    ],
+                },
+            })
+            .mockResolvedValueOnce({
+                Responses: {
+                    "ai-pavilion-events": [publicEvent()],
+                },
+            });
         const response = await savedHandler(makeEvent());
         const body = JSON.parse(response.body);
         expect(response.statusCode).toBe(200);
@@ -107,6 +133,7 @@ describe("user-saved-stands Lambda", () => {
     test("saves canonical stand data from a standId-only request", async () => {
         mockDynamoSend
             .mockResolvedValueOnce({ Item: publicStand() })
+            .mockResolvedValueOnce({ Item: publicEvent() })
             .mockResolvedValueOnce({});
         const response = await savedHandler(
             makeEvent({
@@ -118,7 +145,7 @@ describe("user-saved-stands Lambda", () => {
         expect(response.statusCode).toBe(201);
         expect(body.stand.name).toBe("Canonical Stand");
         expect(body.stand.imageUrl).toBe("https://example.com/image.jpg");
-        expect(mockDynamoSend.mock.calls[1][0].input.Item.schemaVersion).toBe(
+        expect(mockDynamoSend.mock.calls[2][0].input.Item.schemaVersion).toBe(
             2,
         );
     });

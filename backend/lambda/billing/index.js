@@ -359,9 +359,12 @@ async function claimEvent(eventId, type, stripeCreatedAt = null) {
     if (!existing.Item || existing.Item.status === "processed") {
         return { claimed: false, reason: "duplicate" };
     }
+    const existingLeaseExpiresAt = Number(existing.Item.leaseExpiresAt);
     const expired =
         existing.Item.status === "processing" &&
-        Number(existing.Item.leaseExpiresAt || 0) < nowEpoch;
+        Number.isFinite(existingLeaseExpiresAt) &&
+        existingLeaseExpiresAt > 0 &&
+        existingLeaseExpiresAt < nowEpoch;
     if (existing.Item.status !== "failed" && !expired) {
         return { claimed: false, reason: "in_flight" };
     }

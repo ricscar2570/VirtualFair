@@ -120,6 +120,9 @@
       "**/tests/**/*.test.js",
       "**/__tests__/**/*.test.js"
     ],
+    "testPathIgnorePatterns": [
+      "/tests/node/"
+    ],
     "collectCoverageFrom": [
       "backend/lambda/**/*.js",
       "!backend/lambda/common/**",
