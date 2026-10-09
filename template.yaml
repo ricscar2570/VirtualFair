@@ -111,7 +111,7 @@ Parameters:
 
 Globals:
   Function:
-    Runtime: nodejs20.x
+    Runtime: nodejs24.x
     Architectures: [arm64]
     Timeout: 30
     MemorySize: 256
@@ -941,8 +941,6 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /checkout/webhook
             Method: POST
-            Auth:
-              Authorizer: NONE
 
   AdminFunction:
     Type: AWS::Serverless::Function
@@ -1994,8 +1992,6 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /billing/webhook
             Method: POST
-            Auth:
-              Authorizer: NONE
 
   EmailEventsFunction:
     Type: AWS::Serverless::Function
