@@ -35,6 +35,37 @@ jobs:
 
       - name: Generate canonical ESLint and format patch
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("backend/lambda/common/export-utils.js")
+          text = p.read_text()
+          text = text.replace(
+              'const DANGEROUS_CSV_PREFIX = /^[\\u0000-\\u0020]*[=+\\-@]/u;',
+              '// eslint-disable-next-line no-control-regex\\nconst DANGEROUS_CSV_PREFIX = /^[\\u0000-\\u0020]*[=+\\-@]/u;',
+          )
+          text = text.replace(
+              '.replace(/\\u0000/g, "")',
+              '// eslint-disable-next-line no-control-regex\\n        .replace(/\\u0000/g, "")',
+          )
+          p.write_text(text)
+
+          p = Path("backend/lambda/invitations/invite-wrapper.js")
+          p.write_text(p.read_text().replace('const { QuotaError } = require("../common/quota-model");\\n', ''))
+
+          p = Path("backend/lambda/quota-reconciliation/index.js")
+          text = p.read_text()
+          for item in ["getCounter", "eventCounterKey", "standCounterKey", "initializeCounter"]:
+              text = text.replace(f"    {item},\\n", "")
+              text = text.replace(f"  {item},\\n", "")
+          p.write_text(text)
+
+          p = Path("scripts/internal-pilot/preflight.js")
+          p.write_text(p.read_text().replace("[.\\\\/_-]", "[./_-]"))
+
+          p = Path("scripts/phase4.5g/tenant-escape.js")
+          p.write_text(p.read_text().replace('const path = require("path");\\n', ''))
+          PY
           npx eslint . --ext .js --fix || true
           npm run format
           git diff --binary -- . ':(exclude).github/workflows/ci.yml' > quality-fix.patch
