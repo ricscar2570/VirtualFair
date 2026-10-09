@@ -10,6 +10,16 @@
       "owner": "AI Pavilion release engineering",
       "rationale": "No patched braces release is currently listed. Acceptance is valid only when every affected installed node is development-only; production dependencies retain a zero-high gate.",
       "remediation": "Review weekly. Remove the exception when a patched braces release exists, or complete the Tailwind 4 migration after CSS and browser regression testing."
+    },
+    {
+      "id": "GHSA-rj75-hqrm-r3gf",
+      "package": "postcss-selector-parser",
+      "severity": "moderate",
+      "scope": "dev-only",
+      "expiresOn": "2026-11-15",
+      "owner": "AI Pavilion release engineering",
+      "rationale": "The parser is reached only by trusted Tailwind/PostCSS build input in the current pilot toolchain. Upstream 7.1.6 is fixed, but Tailwind 3 constrains an older major; production dependencies remain subject to a zero-high gate.",
+      "remediation": "Migrate the Tailwind build chain to v4 and postcss-selector-parser 7.1.6 or newer after CSS/browser regression testing, then remove this exception."
     }
   ]
 }
