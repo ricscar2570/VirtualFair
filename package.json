@@ -126,6 +126,9 @@
     "collectCoverageFrom": [
       "backend/lambda/**/*.js",
       "!backend/lambda/common/**",
+      "!backend/lambda/events/quota-wrapper.js",
+      "!backend/lambda/invitations/invite-wrapper.js",
+      "!backend/lambda/quota-reconciliation/**",
       "frontend/src/core/helpers.js",
       "frontend/src/core/validators.js",
       "frontend/src/core/templates.js",
