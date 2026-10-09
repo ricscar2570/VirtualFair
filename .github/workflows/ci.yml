@@ -36,8 +36,11 @@ jobs:
       - name: Verify source, contracts, tests, and frontend build
         run: npm run verify
 
-      - name: Audit dependencies
-        run: npm audit --audit-level=high
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Enforce reviewed development dependency policy
+        run: node scripts/security/audit-policy.js
 
       - name: Upload frontend build
         uses: actions/upload-artifact@v4
