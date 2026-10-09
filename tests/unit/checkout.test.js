@@ -41,6 +41,7 @@ const CATALOGUE_RESPONSE = {
         "ai-pavilion-stands-test": [
             {
                 stand_id: "stand-1",
+                name: "Canonical Store",
                 status: "published",
                 moderationStatus: "approved",
                 visibility: "public",
@@ -296,6 +297,7 @@ describe("Checkout Lambda", () => {
         });
         mockDynamoSend
             .mockResolvedValueOnce(CATALOGUE_RESPONSE)
+            .mockResolvedValueOnce(PUBLIC_EVENT_RESPONSE)
             .mockRejectedValueOnce(conditionalError())
             .mockResolvedValueOnce({ Item: existing });
 
@@ -308,6 +310,7 @@ describe("Checkout Lambda", () => {
     test("rejects reuse of an idempotency key for a different cart", async () => {
         mockDynamoSend
             .mockResolvedValueOnce(CATALOGUE_RESPONSE)
+            .mockResolvedValueOnce(PUBLIC_EVENT_RESPONSE)
             .mockRejectedValueOnce(conditionalError())
             .mockResolvedValueOnce({
                 Item: orderRecord({

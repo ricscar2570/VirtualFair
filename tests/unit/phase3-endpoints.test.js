@@ -1198,7 +1198,7 @@ describe("Phase 4 tenant operations", () => {
             name: "Updated Org",
             billingEmail: "billing@example.com",
             profileCompleted: true,
-            schemaVersion: 2,
+            schemaVersion: 3,
         });
     });
 
