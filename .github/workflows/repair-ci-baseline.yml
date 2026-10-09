@@ -1,0 +1,93 @@
+name: Repair AI Pavilion CI baseline
+
+on:
+  push:
+    branches:
+      - fix/ci-remediation-0.9.0
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-ci-baseline
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Install exact dependencies
+        run: |
+          node scripts/check-lockfile-portability.js
+          npm ci --registry=https://registry.npmjs.org
+
+      - name: Remove invalid SAM Authorizer NONE overrides
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("template.yaml")
+          s = p.read_text(encoding="utf-8")
+          needle = "            Auth:\n              Authorizer: NONE\n"
+          count = s.count(needle)
+          if count != 2:
+              raise SystemExit(f"Expected exactly 2 public webhook Authorizer NONE blocks, found {count}")
+          p.write_text(s.replace(needle, ""), encoding="utf-8")
+          PY
+          npm run pilot:generate
+
+      - name: Apply safe dependency remediation
+        run: npm audit fix --registry=https://registry.npmjs.org || true
+
+      - name: Normalize formatting and lint fixes
+        run: |
+          npm run format
+          npm run lint:fix
+
+      - name: Verify application
+        run: npm run verify
+
+      - name: Enforce dependency security gate
+        run: npm audit --audit-level=high
+
+      - name: Validate SAM templates
+        run: |
+          sam validate --lint --template-file template.yaml
+          sam validate --lint --template-file infrastructure/backend-pilot.yaml
+
+      - name: Build SAM templates
+        run: |
+          sam build --template-file template.yaml --build-dir .aws-sam-dev
+          sam build --template-file infrastructure/backend-pilot.yaml --build-dir .aws-sam-pilot
+
+      - name: Commit verified remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          git add -A
+          git reset -- .aws-sam-dev .aws-sam-pilot node_modules dist coverage || true
+          if git diff --cached --quiet; then
+            echo "No remediation changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: make AI Pavilion 0.9.0 CI green"
+          git push origin HEAD:fix/ci-remediation-0.9.0
